@@ -9,72 +9,19 @@
 #include <functional>
 #include <iostream>
 
-#include "RenderContext.hpp"
-#include "load_shaders.hpp"
+#include "core/EntityDef.hpp"
+#include "core/RenderContext.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "components/PlayerInput.hpp"
+#include "components/Transform.hpp"
+#include "entities/GrassBlock.hpp"
+#include "systems/CameraSystem.hpp"
+
+#include "utils/load_shaders.hpp"
+#include "utils/load_texture.hpp"
 
 using namespace std;
 using namespace entityx;
-
-struct Transform {
-    glm::vec3 position;
-    glm::quat rotation;
-};
-
-struct PlayerInput {
-    float axis_forward = 0;
-    float axis_right = 0;
-    float axis_up = 0;
-    float mouse_delta_x = 0;
-    float mouse_delta_y = 0;
-
-    void clear_deltas() {
-        this->mouse_delta_x = 0;
-        this->mouse_delta_y = 0;
-    }
-};
-
-struct Camera {
-    struct {
-        float sensitivity_x = 0.0075f;
-        float sensitivity_y = 0.0075f;
-    } config;
-
-    float pitch = 0;
-    float yaw = 0;
-
-    glm::mat4 view;
-};
-
-struct CameraSystem : public System<CameraSystem> {
-    void update(EntityManager &entityManager, EventManager &eventManager, TimeDelta delta) override {
-        entityManager.each<Camera, Transform, PlayerInput>(
-            [delta](Entity entity, Camera &camera, Transform &transform, PlayerInput &input) {
-                camera.pitch += input.mouse_delta_y * camera.config.sensitivity_y;
-                camera.pitch = min(+1.5708f, camera.pitch);
-                camera.pitch = max(-1.5708f, camera.pitch);
-                camera.yaw += input.mouse_delta_x * camera.config.sensitivity_x;
-                transform.rotation =
-                    glm::angleAxis(camera.pitch, glm::vec3(1, 0, 0)) *
-                    glm::angleAxis(camera.yaw, glm::vec3(0, 1, 0));
-                camera.view =
-                    glm::mat4_cast(glm::normalize(transform.rotation)) *
-                    glm::translate(glm::mat4(1.0f), -transform.position);
-                auto forward = -glm::vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]);
-                auto right = glm::vec3(camera.view[0][0], camera.view[1][0], camera.view[2][0]);
-                auto up = glm::vec3(0, 1, 0);
-                auto velocity = glm::normalize(glm::vec3(input.axis_forward, input.axis_right, 1));
-                auto velocity_forward = velocity.x;
-                auto velocity_right = velocity.y;
-                transform.position +=
-                    forward * velocity_forward * (float)delta +
-                    right * velocity_right * (float)delta +
-                    up * input.axis_up * (float)delta;
-            });
-    };
-};
 
 void setup_input_handlers(GLFWwindow *window, PlayerInput *input) {
     assert(window != NULL);
@@ -179,7 +126,7 @@ int main() {
     setup_input_handlers(window, player_input);
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     // --------------------------------
-    RenderContext render_ctx;
+    RenderContext render_ctx(*player_camera);
     glBindVertexArray(render_ctx.vao);
     glBindBuffer(GL_ARRAY_BUFFER, render_ctx.vbo_cube_vertices);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
@@ -188,30 +135,46 @@ int main() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
     glEnableVertexAttribArray(1);
     // ------------------------------------------------------------------------
-    GLuint tex;
-    glGenTextures(1, &tex);
+    const GrassBlock GRASS_BLOCK = GrassBlock();
+    // ------------------------------------------------------------------------
+    render_ctx.bind_default_vao();
+    // render_ctx.bind_cube_vertices_vbo();
+    // render_ctx.bind_cube_alldiff_uvs_vbo();
+    GLuint tex = load_texture("texture.png");
     glBindTexture(GL_TEXTURE_2D, tex);
-    int w = 0, h = 0, comp = 0;
-    unsigned char *image = stbi_load("texture.png", &w, &h, &comp, STBI_rgb_alpha);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 96, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    stbi_image_free(image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     // ------------------------------------------------------------------------
     glm::mat4 proj_mat = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.f);
     glm::mat4 model_mat = glm::mat4(1.0f);
     // ------------------------------------------------------------------------
     glUseProgram(render_ctx.default_shader);
     glEnable(GL_DEPTH_TEST);
+    for (int i = 0; i < 100; i++) {
+        GRASS_BLOCK.spawn_entity(
+            ex,
+            Transform(
+                std::abs(std::rand()) % 10,
+                std::abs(std::rand()) % 2,
+                std::abs(std::rand()) % 10));
+    }
+    // GRASS_BLOCK.spawn_entity(ex, Transform(0, 0, 0));
+    // GRASS_BLOCK.spawn_entity(ex, Transform(1, 0, 0));
+    // GRASS_BLOCK.spawn_entity(ex, Transform(2, 0, 0));
+    // GRASS_BLOCK.spawn_entity(ex, Transform(0, 0, 1));
+    // GRASS_BLOCK.spawn_entity(ex, Transform(1, 0, 1));
+    // GRASS_BLOCK.spawn_entity(ex, Transform(2, 0, 1));
     while (!glfwWindowShouldClose(window)) {
         double delta = glfwGetTime();
         glfwSetTime(0);
         glClearColor(0.1, 0.2, 0.4, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ex.systems.update<CameraSystem>(delta);
+        render_ctx.bind_default_vao();
+        render_ctx.bind_cube_vertices_vbo();
+        render_ctx.bind_cube_grasslike_uvs_vbo();
         glm::mat4 mvp = proj_mat * player_camera->view * model_mat;
         glUniformMatrix4fv(render_ctx.default_shader_mvp, 1, GL_FALSE, &mvp[0][0]);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        GRASS_BLOCK.render(ex, render_ctx, delta);
         glfwSwapBuffers(window);
         player_input->clear_deltas();
         glfwPollEvents();
