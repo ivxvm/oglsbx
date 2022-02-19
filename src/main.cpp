@@ -16,6 +16,7 @@
 #include "components/Transform.hpp"
 #include "entities/GrassBlock.hpp"
 #include "systems/CameraSystem.hpp"
+#include "systems/RenderStaticMeshesSystem.hpp"
 
 #include "utils/load_shaders.hpp"
 #include "utils/load_texture.hpp"
@@ -101,17 +102,30 @@ void setup_input_handlers(GLFWwindow *window, PlayerInput *input) {
     });
 }
 
+void showFPS(GLFWwindow *pWindow) {
+    static double delta = 0;
+    static int nbFrames = 0;
+    delta += glfwGetTime();
+    nbFrames++;
+    if (delta >= 1.0) {
+        double fps = double(nbFrames) / delta;
+        std::stringstream ss;
+        ss << "oglsbx, fps: " << fps;
+        glfwSetWindowTitle(pWindow, ss.str().c_str());
+        delta = 0;
+        nbFrames = 0;
+    }
+}
+
 int main() {
     EntityX ex;
     ex.systems.add<CameraSystem>();
+    ex.systems.add<RenderStaticMeshesSystem>();
     ex.systems.configure();
     auto player = ex.entities.create();
-    player.assign<Transform>();
-    player.assign<PlayerInput>();
-    player.assign<Camera>();
-    auto player_transform = player.component<Transform>().get();
-    auto player_input = player.component<PlayerInput>().get();
-    auto player_camera = player.component<Camera>().get();
+    auto player_transform = player.assign<Transform>().get();
+    auto player_input = player.assign<PlayerInput>().get();
+    auto player_camera = player.assign<Camera>().get();
     // ------------------------------------------------------------------------
     glfwInit();
     glfwDefaultWindowHints();
@@ -121,61 +135,34 @@ int main() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    auto window = glfwCreateWindow(1024, 768, "glfwtest", NULL, NULL);
+    auto window = glfwCreateWindow(1024, 768, "oglsbx", NULL, NULL);
     glfwMakeContextCurrent(window);
     setup_input_handlers(window, player_input);
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-    // --------------------------------
-    RenderContext render_ctx(*player_camera);
-    glBindVertexArray(render_ctx.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, render_ctx.vbo_cube_vertices);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, render_ctx.vbo_cube_uvs_alldiff);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glEnableVertexAttribArray(1);
     // ------------------------------------------------------------------------
+    RenderContext.initialize(player_camera);
+    glUseProgram(RenderContext.default_shader);
     const GrassBlock GRASS_BLOCK = GrassBlock();
-    // ------------------------------------------------------------------------
-    render_ctx.bind_default_vao();
-    // render_ctx.bind_cube_vertices_vbo();
-    // render_ctx.bind_cube_alldiff_uvs_vbo();
-    GLuint tex = load_texture("texture.png");
-    glBindTexture(GL_TEXTURE_2D, tex);
-    // ------------------------------------------------------------------------
-    glm::mat4 proj_mat = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.f);
-    glm::mat4 model_mat = glm::mat4(1.0f);
-    // ------------------------------------------------------------------------
-    glUseProgram(render_ctx.default_shader);
     glEnable(GL_DEPTH_TEST);
-    for (int i = 0; i < 100; i++) {
+    glFrontFace(GL_CW);
+    glEnable(GL_CULL_FACE);
+    for (int i = 0; i < 560000; i++) {
         GRASS_BLOCK.spawn_entity(
             ex,
             Transform(
-                std::abs(std::rand()) % 10,
-                std::abs(std::rand()) % 2,
-                std::abs(std::rand()) % 10));
+                std::abs(std::rand()) % 100,
+                std::abs(std::rand()) % 100,
+                std::abs(std::rand()) % 100));
     }
-    // GRASS_BLOCK.spawn_entity(ex, Transform(0, 0, 0));
-    // GRASS_BLOCK.spawn_entity(ex, Transform(1, 0, 0));
-    // GRASS_BLOCK.spawn_entity(ex, Transform(2, 0, 0));
-    // GRASS_BLOCK.spawn_entity(ex, Transform(0, 0, 1));
-    // GRASS_BLOCK.spawn_entity(ex, Transform(1, 0, 1));
-    // GRASS_BLOCK.spawn_entity(ex, Transform(2, 0, 1));
     while (!glfwWindowShouldClose(window)) {
         double delta = glfwGetTime();
         glfwSetTime(0);
         glClearColor(0.1, 0.2, 0.4, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ex.systems.update<CameraSystem>(delta);
-        render_ctx.bind_default_vao();
-        render_ctx.bind_cube_vertices_vbo();
-        render_ctx.bind_cube_grasslike_uvs_vbo();
-        glm::mat4 mvp = proj_mat * player_camera->view * model_mat;
-        glUniformMatrix4fv(render_ctx.default_shader_mvp, 1, GL_FALSE, &mvp[0][0]);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        GRASS_BLOCK.render(ex, render_ctx, delta);
+        ex.systems.update<RenderStaticMeshesSystem>(delta);
         glfwSwapBuffers(window);
+        showFPS(window);
         player_input->clear_deltas();
         glfwPollEvents();
     }
