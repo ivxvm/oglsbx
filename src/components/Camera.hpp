@@ -8,6 +8,7 @@ struct Camera {
         float sensitivity_yaw = 0.0075f;
         float sensitivity_pitch = 0.0075f;
         float movement_speed = 20.f;
+        float offset_y = 2.f;
     } config;
 
     float pitch = 0;

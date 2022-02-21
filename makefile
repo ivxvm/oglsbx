@@ -1,10 +1,10 @@
 TARGET     = oglsbx
 
 CXX        = clang++
-CXXFLAGS   = -std=c++2b -I/opt/homebrew/include -Wno-deprecated
+CXXFLAGS   = -std=c++2b -I/opt/homebrew/include -Wno-deprecated -w
 
 LD         = clang++ -o
-LDFLAGS    = -L/opt/homebrew/lib -lglfw -lentityx -framework OpenGL -Wall -pedantic
+LDFLAGS    = -L/opt/homebrew/lib -lglfw -lentityx -lBulletDynamics -lBulletCollision -lLinearMath -framework OpenGL -Wall -pedantic
 
 SRCDIR     = src
 OBJDIR     = obj

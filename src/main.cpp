@@ -15,7 +15,9 @@
 #include "components/PlayerInput.hpp"
 #include "components/Transform.hpp"
 #include "entities/GrassBlock.hpp"
+#include "entities/Player.hpp"
 #include "systems/CameraSystem.hpp"
+#include "systems/PhysicsSystem.hpp"
 #include "systems/RenderStaticMeshesSystem.hpp"
 
 #include "utils/load_shaders.hpp"
@@ -120,12 +122,9 @@ void showFPS(GLFWwindow *pWindow) {
 int main() {
     EntityX ex;
     ex.systems.add<CameraSystem>();
+    ex.systems.add<PhysicsSystem>();
     ex.systems.add<RenderStaticMeshesSystem>();
     ex.systems.configure();
-    auto player = ex.entities.create();
-    auto player_transform = player.assign<Transform>().get();
-    auto player_input = player.assign<PlayerInput>().get();
-    auto player_camera = player.assign<Camera>().get();
     // ------------------------------------------------------------------------
     glfwInit();
     glfwDefaultWindowHints();
@@ -137,28 +136,33 @@ int main() {
 #endif
     auto window = glfwCreateWindow(1024, 768, "oglsbx", NULL, NULL);
     glfwMakeContextCurrent(window);
-    setup_input_handlers(window, player_input);
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     // ------------------------------------------------------------------------
-    RenderContext.initialize(player_camera);
-    glUseProgram(RenderContext.default_shader);
+    PhysicContext.initialize();
+    const Player PLAYER = Player();
+    auto player = PLAYER.spawn_entity(ex, Transform(5, 5, 5));
+    auto player_input = player.component<PlayerInput>().get();
+    RenderContext.initialize(player.component<Camera>().get());
+    setup_input_handlers(window, player_input);
     const GrassBlock GRASS_BLOCK = GrassBlock();
-    glEnable(GL_DEPTH_TEST);
-    glFrontFace(GL_CW);
-    glEnable(GL_CULL_FACE);
-    for (int i = 0; i < 560000; i++) {
+    for (int i = 0; i < 1000; i++) {
         GRASS_BLOCK.spawn_entity(
             ex,
             Transform(
-                std::abs(std::rand()) % 100,
-                std::abs(std::rand()) % 100,
-                std::abs(std::rand()) % 100));
+                std::abs(std::rand()) % 20,
+                std::abs(std::rand()) % 2,
+                std::abs(std::rand()) % 20));
     }
+    glUseProgram(RenderContext.default_shader);
+    glEnable(GL_DEPTH_TEST);
+    glFrontFace(GL_CW);
+    glEnable(GL_CULL_FACE);
     while (!glfwWindowShouldClose(window)) {
         double delta = glfwGetTime();
         glfwSetTime(0);
         glClearColor(0.1, 0.2, 0.4, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ex.systems.update<PhysicsSystem>(delta);
         ex.systems.update<CameraSystem>(delta);
         ex.systems.update<RenderStaticMeshesSystem>(delta);
         glfwSwapBuffers(window);

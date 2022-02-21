@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../components/RigidBody.hpp"
 #include "../components/StaticMesh.hpp"
 #include "../components/Transform.hpp"
 #include "../core/EntityDef.hpp"
+#include "../core/PhysicsContext.hpp"
 #include "../utils/load_texture.hpp"
 #include <OpenGL/gl3.h>
 #include <glm/ext.hpp>
@@ -24,6 +26,7 @@ struct GrassBlock : public EntityDef {
                                   RenderContext.vbo_cube_vertices,
                                   RenderContext.vbo_cube_uvs_grasslike,
                                   texture);
+        entity.assign<RigidBody>(PhysicContext.spawn_block_rigidbody(transform));
         return entity;
     }
 };
