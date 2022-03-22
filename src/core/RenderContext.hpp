@@ -5,22 +5,32 @@
 #include "../components/Camera.hpp"
 #include "../utils/load_shaders.hpp"
 
-struct render_context_t {
-    GLuint default_vao;
-    GLuint vbo_cube_vertices;
-    GLuint vbo_cube_uvs_alldiff;
-    GLuint vbo_cube_uvs_grasslike;
-
-    GLuint default_shader;
-    GLint default_shader_vp;
-
+class RenderContextSingleton {
+private:
+    const Camera *camera;
     GLuint active_vao = 0;
     GLuint active_vertices_vbo = 0;
     GLuint active_uvs_vbo = 0;
     GLuint active_transforms_vbo = 0;
     GLuint active_texture = 0;
 
-    Camera *camera;
+public:
+    bool is_initialized = false;
+    GLuint default_vao;
+    GLuint vbo_cube_vertices;
+    GLuint vbo_cube_uvs_alldiff;
+    GLuint vbo_cube_uvs_grasslike;
+    GLuint default_shader;
+    GLint default_shader_vp;
+
+    void set_camera(const Camera *camera) {
+        this->camera = camera;
+    }
+
+    const Camera *get_camera() {
+        assert(camera != NULL);
+        return camera;
+    }
 
     void bind_vao(GLuint vao) {
         if (active_vao != vao) {
@@ -64,8 +74,7 @@ struct render_context_t {
         }
     }
 
-    void initialize(Camera *cam) {
-        camera = cam;
+    void initialize() {
         glGenVertexArrays(1, &default_vao);
         glBindVertexArray(default_vao);
         // --------------------------------------------------------------------
@@ -215,5 +224,6 @@ struct render_context_t {
         // --------------------------------------------------------------------
         default_shader = load_shaders("src/shaders/block.vert", "src/shaders/block.frag");
         default_shader_vp = glGetUniformLocation(default_shader, "vp");
+        is_initialized = true;
     }
 } RenderContext;

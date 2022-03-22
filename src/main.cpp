@@ -120,12 +120,6 @@ void showFPS(GLFWwindow *pWindow) {
 }
 
 int main() {
-    EntityX ex;
-    ex.systems.add<CameraSystem>();
-    ex.systems.add<PhysicsSystem>();
-    ex.systems.add<RenderStaticMeshesSystem>();
-    ex.systems.configure();
-    // ------------------------------------------------------------------------
     glfwInit();
     glfwDefaultWindowHints();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -139,12 +133,16 @@ int main() {
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     // ------------------------------------------------------------------------
     PhysicContext.initialize();
+    RenderContext.initialize();
+    EntityX ex;
+    ex.systems.add<CameraSystem>();
+    ex.systems.add<PhysicsSystem>();
+    ex.systems.add<RenderStaticMeshesSystem>();
+    ex.systems.configure();
+    // ------------------------------------------------------------------------
     const Player PLAYER = Player();
-    auto player = PLAYER.spawn_entity(ex, Transform(5, 5, 5));
-    auto player_input = player.component<PlayerInput>().get();
-    RenderContext.initialize(player.component<Camera>().get());
-    setup_input_handlers(window, player_input);
     const GrassBlock GRASS_BLOCK = GrassBlock();
+    // ------------------------------------------------------------------------
     for (int i = 0; i < 1000; i++) {
         GRASS_BLOCK.spawn_entity(
             ex,
@@ -153,6 +151,11 @@ int main() {
                 std::abs(std::rand()) % 2,
                 std::abs(std::rand()) % 20));
     }
+    auto player = PLAYER.spawn_entity(ex, Transform(5, 5, 5));
+    auto player_input = player.component<PlayerInput>().get();
+    auto player_camera = player.component<Camera>().get();
+    RenderContext.set_camera(player_camera);
+    setup_input_handlers(window, player_input);
     glUseProgram(RenderContext.default_shader);
     glEnable(GL_DEPTH_TEST);
     glFrontFace(GL_CW);

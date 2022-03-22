@@ -36,12 +36,12 @@ struct RenderStaticMeshesSystem : public System<RenderStaticMeshesSystem>,
 
     void update(EntityManager &entity_mgr, EventManager &event_mgr, TimeDelta delta) override final {
         if (should_update_transform_vbos) {
-            cout << "update_transform_vbos" << endl;
             update_transform_vbos(entity_mgr);
             updated_mesh_families.clear();
             should_update_transform_vbos = false;
         }
-        glm::mat4 vp = RenderContext.camera->proj * RenderContext.camera->view;
+        auto camera = RenderContext.get_camera();
+        glm::mat4 vp = camera->proj * camera->view;
         glUniformMatrix4fv(RenderContext.default_shader_vp, 1, GL_FALSE, &vp[0][0]);
         for (auto &[family, vbo_transforms] : mesh_family_transform_vbos) {
             auto [vao, vbo_vertices, vbo_uvs, texture] = family;

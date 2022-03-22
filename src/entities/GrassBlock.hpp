@@ -16,6 +16,8 @@ struct GrassTag {};
 struct GrassBlock : public EntityDef {
     GLuint texture;
     GrassBlock() {
+        assert(RenderContext.is_initialized);
+        RenderContext.bind_vao(RenderContext.default_vao);
         texture = load_texture("grass.png");
     }
     Entity spawn_entity(EntityX &ex, Transform transform) const final {

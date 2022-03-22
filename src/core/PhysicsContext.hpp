@@ -4,7 +4,9 @@
 #include <bullet/btBulletDynamicsCommon.h>
 #include <iostream>
 
-struct PhysicsContextSingleton {
+class PhysicsContextSingleton {
+public:
+    bool is_initialized = false;
     btDiscreteDynamicsWorld *dynamics_world;
     btCollisionShape *block_collision_shape;
     btCollisionShape *creature_collision_shape;
@@ -19,6 +21,7 @@ struct PhysicsContextSingleton {
         dynamics_world->setGravity(btVector3(0, -10, 0));
         block_collision_shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
         creature_collision_shape = new btCylinderShape(btVector3(0.5f, 1.0f, 0.5f));
+        is_initialized = true;
     }
 
     btRigidBody *spawn_block_rigidbody(Transform transform) {
